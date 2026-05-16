@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RAG Simulator</title>
+
+<style>
+    *{
+        margin:0;
+        padding:0;
+        box-sizing:border-box;
+        font-family: Inter, system-ui, sans-serif;
+    }
+
+    body{
+        background:#0f172a;
+        color:white;
+        min-height:100vh;
+        padding:30px;
+    }
+
+    h1{
+        font-size:2.5rem;
+        margin-bottom:10px;
+    }
+
+    .subtitle{
+        color:#94a3b8;
+        margin-bottom:30px;
+        line-height:1.6;
+    }
+
+    .container{
+        display:grid;
+        grid-template-columns: 420px 1fr;
+        gap:24px;
+    }
+
+    .card{
+        background:rgba(255,255,255,0.05);
+        border:1px solid rgba(255,255,255,0.08);
+        border-radius:20px;
+        padding:20px;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .card h2{
+        margin-bottom:16px;
+        font-size:1.2rem;
+    }
+
+    textarea{
+        width:100%;
+        height:180px;
+        background:#111827;
+        border:none;
+        outline:none;
+        color:white;
+        padding:16px;
+        border-radius:14px;
+        resize:none;
+        line-height:1.5;
+        font-size:14px;
+    }
+
+    input{
+        width:100%;
+        background:#111827;
+        border:none;
+        outline:none;
+        color:white;
+        padding:14px;
+        border-radius:14px;
+        margin-top:14px;
+        font-size:15px;
+    }
+
+    button{
+        margin-top:16px;
+        width:100%;
+        padding:14px;
+        border:none;
+        border-radius:14px;
+        background:linear-gradient(135deg,#3b82f6,#8b5cf6);
+        color:white;
+        font-weight:600;
+        cursor:pointer;
+        transition:0.25s;
+    }
+
+    button:hover{
+        transform:translateY(-2px);
+        opacity:0.95;
+    }
+
+    .steps{
+        display:flex;
+        flex-direction:column;
+        gap:16px;
+    }
+
+    .step{
+        background:#111827;
+        border-radius:16px;
+        padding:18px;
+        border-left:4px solid #3b82f6;
+        opacity:0;
+        transform:translateY(10px);
+        transition:0.4s;
+    }
+
+    .step.show{
+        opacity:1;
+        transform:translateY(0px);
+    }
+
+    .step h3{
+        margin-bottom:10px;
+        color:#60a5fa;
+    }
+
+    .chunk{
+        background:#1e293b;
+        padding:10px;
+        border-radius:10px;
+        margin-top:8px;
+        color:#cbd5e1;
+        font-size:14px;
+    }
+
+    .highlight{
+        border:1px solid #8b5cf6;
+        background:#312e81;
+    }
+
+    .vector{
+        color:#86efac;
+        margin-top:6px;
+        font-size:13px;
+        word-break:break-word;
+    }
+
+    .response{
+        background:#0f172a;
+        border-radius:16px;
+        padding:16px;
+        margin-top:10px;
+        line-height:1.7;
+        color:#e2e8f0;
+        border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .label{
+        display:inline-block;
+        padding:6px 12px;
+        border-radius:999px;
+        font-size:12px;
+        margin-bottom:10px;
+        background:#1e293b;
+        color:#93c5fd;
+    }
+
+    .architecture{
+        display:grid;
+        grid-template-columns:repeat(4,1fr);
+        gap:12px;
+        margin-bottom:24px;
+    }
+
+    .arch-box{
+        background:#111827;
+        padding:16px;
+        border-radius:14px;
+        text-align:center;
+        border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .arch-box span{
+        display:block;
+        margin-top:10px;
+        color:#94a3b8;
+        font-size:13px;
+        line-height:1.5;
+    }
+
+    .context-window{
+        margin-top:15px;
+        background:#111827;
+        border-radius:12px;
+        padding:14px;
+        border:1px dashed #3b82f6;
+    }
+
+    .context-bar{
+        height:18px;
+        background:#1e293b;
+        border-radius:999px;
+        overflow:hidden;
+        margin-top:10px;
+    }
+
+    .context-fill{
+        height:100%;
+        width:0%;
+        background:linear-gradient(90deg,#3b82f6,#8b5cf6);
+        transition:1s;
+    }
+
+    @media(max-width:1000px){
+        .container{
+            grid-template-columns:1fr;
+        }
+
+        .architecture{
+            grid-template-columns:1fr 1fr;
+        }
+    }
+</style>
+</head>
+<body>
+
+<h1>🧠 RAG Simulator</h1>
+
+<p class="subtitle">
+Understand how Retrieval-Augmented Generation works:
+chunking → embeddings → vector DB → retrieval → context injection → LLM response.
+</p>
+
+<div class="architecture">
+
+    <div class="arch-box">
+        📄 Documents
+        <span>Raw knowledge/data source</span>
+    </div>
+
+    <div class="arch-box">
+        ✂️ Chunking
+        <span>Split documents into smaller pieces</span>
+    </div>
+
+    <div class="arch-box">
+        🧮 Embeddings
+        <span>Convert text into vectors</span>
+    </div>
+
+    <div class="arch-box">
+        🧠 LLM + Context
+        <span>Generate final response</span>
+    </div>
+
+</div>
+
+<div class="container">
+
+    <div class="card">
+
+        <h2>📚 Knowledge Base</h2>
+
+        <textarea id="knowledge">
+RAG stands for Retrieval-Augmented Generation.
+
+A vector database stores embeddings of document chunks.
+
+Embeddings are numerical representations of text.
+
+Chunking breaks large documents into smaller searchable pieces.
+
+The LLM retrieves relevant chunks before generating a response.
+
+A context window is temporary space available during inference.
+
+The model weights contain pretrained knowledge.
+
+RAG improves factual grounding by injecting external context.
+        </textarea>
+
+        <input id="query" placeholder="Ask something... Example: What is a vector database?" />
+
+        <button onclick="runRAG()">Run RAG Simulation</button>
+
+        <div class="context-window">
+            <div style="font-size:14px;color:#94a3b8;">
+                Context Window Usage
+            </div>
+
+            <div class="context-bar">
+                <div class="context-fill" id="contextFill"></div>
+            </div>
+
+            <div style="margin-top:8px;font-size:13px;color:#cbd5e1;" id="contextText">
+                0% used
+            </div>
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <h2>⚡ RAG Pipeline Visualization</h2>
+
+        <div class="steps" id="steps"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+function fakeEmbedding(text){
+    return Array.from(text)
+        .slice(0,10)
+        .map(char => char.charCodeAt(0) % 10)
+        .join(", ");
+}
+
+function similarity(query, text){
+
+    const qWords = query.toLowerCase().split(" ");
+    const tWords = text.toLowerCase().split(" ");
+
+    let score = 0;
+
+    qWords.forEach(word=>{
+        if(tWords.includes(word)){
+            score++;
+        }
+    });
+
+    return score;
+}
+
+function sleep(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function runRAG(){
+
+    const knowledge = document.getElementById("knowledge").value;
+    const query = document.getElementById("query").value;
+
+    const steps = document.getElementById("steps");
+
+    steps.innerHTML = "";
+
+    if(!query.trim()){
+        alert("Please enter a query.");
+        return;
+    }
+
+    // STEP 1 - Chunking
+
+    const chunks = knowledge
+        .split("\n")
+        .filter(x=>x.trim() !== "");
+
+    const step1 = createStep(
+        "1️⃣ Chunking",
+        "The knowledge base is split into smaller chunks."
+    );
+
+    chunks.forEach(chunk=>{
+        step1.innerHTML += `<div class="chunk">${chunk}</div>`;
+    });
+
+    steps.appendChild(step1);
+
+    await animate(step1);
+
+    // STEP 2 - Embeddings
+
+    const step2 = createStep(
+        "2️⃣ Creating Embeddings",
+        "Each chunk is converted into vector embeddings."
+    );
+
+    chunks.forEach(chunk=>{
+
+        step2.innerHTML += `
+            <div class="chunk">
+                ${chunk}
+                <div class="vector">
+                    Embedding → [${fakeEmbedding(chunk)}]
+                </div>
+            </div>
+        `;
+    });
+
+    steps.appendChild(step2);
+
+    await animate(step2);
+
+    // STEP 3 - Query Embedding
+
+    const queryEmbedding = fakeEmbedding(query);
+
+    const step3 = createStep(
+        "3️⃣ User Query Embedding",
+        `The user query is also converted into an embedding vector.
+
+        <div class="chunk highlight">
+            Query: "${query}"
+
+            <div class="vector">
+                Query Embedding → [${queryEmbedding}]
+            </div>
+        </div>
+        `
+    );
+
+    steps.appendChild(step3);
+
+    await animate(step3);
+
+    // STEP 4 - Similarity Search
+
+    let scored = chunks.map(chunk=>({
+        text: chunk,
+        score: similarity(query, chunk)
+    }));
+
+    scored.sort((a,b)=>b.score-a.score);
+
+    const retrieved = scored.slice(0,3);
+
+    const step4 = createStep(
+        "4️⃣ Vector Database Retrieval",
+        "Most relevant chunks are retrieved using similarity search."
+    );
+
+    retrieved.forEach(item=>{
+
+        step4.innerHTML += `
+            <div class="chunk highlight">
+                Similarity Score: ${item.score}<br><br>
+                ${item.text}
+            </div>
+        `;
+    });
+
+    steps.appendChild(step4);
+
+    await animate(step4);
+
+    // STEP 5 - Context Injection
+
+    const contextText = retrieved.map(r=>r.text).join(" ");
+
+    const contextPercent = Math.min(
+        Math.floor((contextText.length / 400) * 100),
+        100
+    );
+
+    document.getElementById("contextFill").style.width = contextPercent + "%";
+    document.getElementById("contextText").innerText =
+        `${contextPercent}% of context window used`;
+
+    const step5 = createStep(
+        "5️⃣ Context Injection",
+        `
+        Retrieved chunks are inserted into the LLM's context window.
+
+        <div class="response">
+            ${contextText}
+        </div>
+        `
+    );
+
+    steps.appendChild(step5);
+
+    await animate(step5);
+
+    // STEP 6 - Final Generation
+
+    const response = generateResponse(query, retrieved);
+
+    const step6 = createStep(
+        "6️⃣ Final LLM Response",
+        `
+        The LLM now generates a response using:
+        <br><br>
+
+        ✅ Retrieved Context<br>
+        ✅ Conversation Context<br>
+        ✅ Pretrained Knowledge<br>
+
+        <div class="response">
+            ${response}
+        </div>
+        `
+    );
+
+    steps.appendChild(step6);
+
+    await animate(step6);
+}
+
+function generateResponse(query, retrieved){
+
+    const context = retrieved.map(r=>r.text).join(" ");
+
+    return `
+        Based on retrieved knowledge, the answer to
+        "<strong>${query}</strong>" is:
+
+        <br><br>
+
+        ${context}
+
+        <br><br>
+
+        This demonstrates how RAG does NOT retrain the model.
+        Instead, it dynamically retrieves external information
+        and injects it into the context window before generation.
+    `;
+}
+
+function createStep(title, content){
+
+    const div = document.createElement("div");
+
+    div.className = "step";
+
+    div.innerHTML = `
+        <div class="label">RAG Pipeline Step</div>
+        <h3>${title}</h3>
+        <div>${content}</div>
+    `;
+
+    return div;
+}
+
+async function animate(element){
+
+    await sleep(300);
+
+    element.classList.add("show");
+
+    await sleep(700);
+}
+
+</script>
+
+</body>
+</html>
